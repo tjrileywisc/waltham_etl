@@ -1,0 +1,17 @@
+[tool.pdm]
+
+[project]
+name = ""
+version = ""
+description = ""
+authors = [
+    {name = "Timothy Riley", email = "timothyjohnriley@gmail.com"},
+]
+dependencies = [
+    "census>=0.8.19",
+    "dvc>=2.45.1",
+    "pandas>=1.5.3",
+    "tqdm>=4.64.1",
+]
+requires-python = ">=3.11"
+license = {text = "MIT"}
