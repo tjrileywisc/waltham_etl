@@ -11,11 +11,17 @@ If you know how to reach me, I may be able to provide you with a remote for the 
 
 ## Fetching data
 
+### Census
+
 To fetch US Census data, get an API key. Copy the `config.default.json` file in the
 repository and name it `config.json`. Enter your API key into the file.
 
 Run the python `get_census_data.py` script. This fetches a selection of
 data from the Data Profiles and Subjects tables of the American Community Survey.
+
+### MassGIS layers
+
+This data doesn't require any authentication - just run the `get_gis_layers.py` script.
 
 ## Referenced values
 
