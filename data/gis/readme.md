@@ -5,6 +5,14 @@ NOTE: Waltham seems to have the ID 308, which is the 1 indexed row number in thi
 excel file (so Waltham is on row 307):
 https://www.mass.gov/doc/massgis-parcel-data-download-links-table/download
 
+Neighbooring cities:
+Arlington 10
+Lexington 155
+Lincoln 157
+Newton 207
+Watertown 314
+Weston 333
+
 ## what's in here?
 
 - L3_SHIP_M308_WALTHAM
