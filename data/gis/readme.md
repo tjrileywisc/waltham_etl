@@ -6,7 +6,7 @@ excel file (so Waltham is on row 307):
 https://www.mass.gov/doc/massgis-parcel-data-download-links-table/download
 
 Neighbooring cities:
-Arlington 10
+Belmont 026
 Lexington 155
 Lincoln 157
 Newton 207
