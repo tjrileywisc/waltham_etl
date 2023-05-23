@@ -19,6 +19,8 @@ repository and name it `config.json`. Enter your API key into the file.
 Run the python `get_census_data.py` script. This fetches a selection of
 data from the Data Profiles and Subjects tables of the American Community Survey.
 
+See https://api.census.gov/data.html for the actual tables and fields that are available.
+
 ### MassGIS layers
 
 This data doesn't require any authentication - just run the `get_gis_layers.py` script.

@@ -11,6 +11,7 @@ config = json.load(open("config.json"))
 
 DATA_PROFILES_CENSUS_DF_PATH = "data/census/data_profiles_census_df.csv"
 SUBJECT_CENSUS_DF_PATH = "data/census/subject_census_df.csv"
+DECENNIAL_CENSUS_DF_PATH = "data/census/decennial_census_df.csv"
 
 MA_FIPS = "25"
 MIDDLESEX_FIPS = "017"
@@ -90,6 +91,12 @@ subject_census_fields = [
     "S0101_C01_026E"
 ]
 
+decennial_census_fields = [
+    # P1 RACE table fields
+    *[f"P1_{n:03}N" for n in range(1, 72)]
+]
+
+
 CENSUS_API_KEY = config["census_api_key"]
 census_api = Census(CENSUS_API_KEY)
 
@@ -128,3 +135,22 @@ if not os.path.exists(SUBJECT_CENSUS_DF_PATH):
 
     subject_census_df.index.name = "tract"
     subject_census_df.to_csv(SUBJECT_CENSUS_DF_PATH)
+    
+
+print("Decennial census fields")
+
+if not os.path.exists(DECENNIAL_CENSUS_DF_PATH):
+    decennical_census_df = pd.DataFrame(index=WALTHAM_CENSUS_TRACTS, columns=decennial_census_fields)
+    
+    for tract in tqdm(WALTHAM_CENSUS_TRACTS, desc="tracts"):
+        for variable in tqdm(decennial_census_fields, desc="fields", leave=False):
+            # make tract url friendly
+            tract_url = str(int(float(tract)*100))
+            
+            value = census_api.pl.state_county_tract(('NAME', variable), MA_FIPS, MIDDLESEX_FIPS, tract_url)
+            
+            decennical_census_df.at[tract, variable] = value[0][variable]
+            
+    decennical_census_df.index.name = "tract"
+    decennical_census_df.to_csv(DECENNIAL_CENSUS_DF_PATH)
+    
