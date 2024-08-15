@@ -87,8 +87,12 @@ data_profiles_census_fields = [
 ]
 
 subject_census_fields = [
-    # Estimate!!Total!!Total population!!SELECTED AGE CATEGORIES!!18 years and over
-    "S0101_C01_026E"
+    # 18 years and over
+    "S0101_C01_026E",
+    # age in 5 year increments
+    *[f"S0101_C01_{n:03}E" for n in range(1, 20)],
+    # popluation 60 years and over in the united states
+    *[f"S0102_C02_{n:03}E" for n in range(1, 15)]
 ]
 
 decennial_census_fields = [

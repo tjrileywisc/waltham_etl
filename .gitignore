@@ -1,6 +1,6 @@
 
 # environment
-.pdm.toml
+.pdm-python
 .venv
 
 # configuration
