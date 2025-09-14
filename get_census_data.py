@@ -2,16 +2,13 @@
 import json
 import os
 from census import Census
+from connect_db import get_db
 import pandas as pd
 from tqdm import tqdm
 
-os.makedirs("data/census", exist_ok=True)
+con = get_db()
 
 config = json.load(open("config.json"))
-
-DATA_PROFILES_CENSUS_DF_PATH = "data/census/data_profiles_census_df.csv"
-SUBJECT_CENSUS_DF_PATH = "data/census/subject_census_df.csv"
-DECENNIAL_CENSUS_DF_PATH = "data/census/decennial_census_df.csv"
 
 MA_FIPS = "25"
 MIDDLESEX_FIPS = "017"
@@ -107,54 +104,49 @@ census_api = Census(CENSUS_API_KEY)
 print("Data Profile tables fields")
 
 # FYI - this takes several minutes to run... is it possible to query for more than one tract at a time?
-if not os.path.exists(DATA_PROFILES_CENSUS_DF_PATH):
-    data_profiles_census_df = pd.DataFrame(index=WALTHAM_CENSUS_TRACTS, columns=data_profiles_census_fields)
+data_profiles_census_df = pd.DataFrame(index=WALTHAM_CENSUS_TRACTS, columns=data_profiles_census_fields)
 
-    for tract in tqdm(WALTHAM_CENSUS_TRACTS, desc="tracts"):
-        for variable in tqdm(data_profiles_census_fields, desc="fields", leave=False):
-            # make tract url friendly
-            tract_url = str(int(float(tract)*100))
+for tract in tqdm(WALTHAM_CENSUS_TRACTS, desc="tracts"):
+    for variable in tqdm(data_profiles_census_fields, desc="fields", leave=False):
+        # make tract url friendly
+        tract_url = str(int(float(tract)*100))
 
-            value = census_api.acs5dp.state_county_tract(('NAME', variable), MA_FIPS, MIDDLESEX_FIPS, tract_url)
+        value = census_api.acs5dp.state_county_tract(('NAME', variable), MA_FIPS, MIDDLESEX_FIPS, tract_url)
 
-            data_profiles_census_df.at[tract, variable] = value[0][variable]
+        data_profiles_census_df.at[tract, variable] = value[0][variable]
 
-    data_profiles_census_df.index.name = "tract"
-    data_profiles_census_df.to_csv(DATA_PROFILES_CENSUS_DF_PATH)
+data_profiles_census_df.index.name = "tract"
+data_profiles_census_df.to_sql("data_profiles_census", con)
 
 
 print("Subject table fields")
+subject_census_df = pd.DataFrame(index=WALTHAM_CENSUS_TRACTS, columns=subject_census_fields)
 
-if not os.path.exists(SUBJECT_CENSUS_DF_PATH):
-    subject_census_df = pd.DataFrame(index=WALTHAM_CENSUS_TRACTS, columns=subject_census_fields)
+for tract in tqdm(WALTHAM_CENSUS_TRACTS, desc="tracts"):
+    for variable in tqdm(subject_census_fields, desc="fields", leave=False):
+        # make tract url friendly
+        tract_url = str(int(float(tract)*100))
 
-    for tract in tqdm(WALTHAM_CENSUS_TRACTS, desc="tracts"):
-        for variable in tqdm(subject_census_fields, desc="fields", leave=False):
-            # make tract url friendly
-            tract_url = str(int(float(tract)*100))
+        value = census_api.acs5st.state_county_tract(('NAME', variable), MA_FIPS, MIDDLESEX_FIPS, tract_url)
 
-            value = census_api.acs5st.state_county_tract(('NAME', variable), MA_FIPS, MIDDLESEX_FIPS, tract_url)
+        subject_census_df.at[tract, variable] = value[0][variable]
 
-            subject_census_df.at[tract, variable] = value[0][variable]
-
-    subject_census_df.index.name = "tract"
-    subject_census_df.to_csv(SUBJECT_CENSUS_DF_PATH)
-    
+subject_census_df.index.name = "tract"
+subject_census_df.to_sql("subject_census", con)    
 
 print("Decennial census fields")
 
-if not os.path.exists(DECENNIAL_CENSUS_DF_PATH):
-    decennical_census_df = pd.DataFrame(index=WALTHAM_CENSUS_TRACTS, columns=decennial_census_fields)
-    
-    for tract in tqdm(WALTHAM_CENSUS_TRACTS, desc="tracts"):
-        for variable in tqdm(decennial_census_fields, desc="fields", leave=False):
-            # make tract url friendly
-            tract_url = str(int(float(tract)*100))
-            
-            value = census_api.pl.state_county_tract(('NAME', variable), MA_FIPS, MIDDLESEX_FIPS, tract_url)
-            
-            decennical_census_df.at[tract, variable] = value[0][variable]
-            
-    decennical_census_df.index.name = "tract"
-    decennical_census_df.to_csv(DECENNIAL_CENSUS_DF_PATH)
+decennial_census_df = pd.DataFrame(index=WALTHAM_CENSUS_TRACTS, columns=decennial_census_fields)
+
+for tract in tqdm(WALTHAM_CENSUS_TRACTS, desc="tracts"):
+    for variable in tqdm(decennial_census_fields, desc="fields", leave=False):
+        # make tract url friendly
+        tract_url = str(int(float(tract)*100))
+        
+        value = census_api.pl.state_county_tract(('NAME', variable), MA_FIPS, MIDDLESEX_FIPS, tract_url)
+        
+        decennial_census_df.at[tract, variable] = value[0][variable]
+        
+decennial_census_df.index.name = "tract"
+decennial_census_df.to_sql("decennial_census", con)
     
