@@ -1,0 +1,17 @@
+version: '3'
+services:
+  db:
+    container_name: walthamdata
+    image: postgis/postgis
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: walthamdata
+      POSTGRES_DB: walthamdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db:/docker-entrypoint-initdb.d/
+      - database_volume:/var/lib/postgresql/data
+
+volumes:
+  database_volume:
