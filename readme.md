@@ -1,13 +1,18 @@
 
 # ETL for Waltham, MA specific data
 
+This project runs backend services that fetch data for various analyses on the built environment of Waltham, MA.
+
+## Services
+
+This app contains some containerized services that fetch data, provide an MCP server with select access to GIS functions,
+and a PostGIS database for GIS queries.
+
 ## Instructions
 
-This project uses [`pdm`](https://pdm.fming.dev/latest/) as a dependencies manager and [`dvc`](https://dvc.org/doc) to manage data versioning.
-
-Firstly, make sure you have pdm (get it from the cheeseshop), then just do `pdm install` to install dependencies.
-
-If you know how to reach me, I may be able to provide you with a remote for the `dvc` data.
+Dependencies are managed with `uv`. Services should be testable on their own outside of a container, ideally. Some services
+need API credentials to access, see the `config.default.json` file for an example and create a `config.json` with your creds
+when you have them.
 
 ## Fetching data
 
@@ -19,7 +24,7 @@ repository and name it `config.json`. Enter your API key into the file.
 Run the python `get_census_data.py` script. This fetches a selection of
 data from the Data Profiles and Subjects tables of the American Community Survey.
 
-See https://api.census.gov/data.html for the actual tables and fields that are available.
+See [https://api.census.gov/data.html] for the actual tables and fields that are available.
 
 ### MassGIS layers
 

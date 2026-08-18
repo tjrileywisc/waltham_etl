@@ -14,6 +14,19 @@ services:
     networks:
       - waltham-gis
 
+  mcp-gis:
+    container_name: mcp-gis
+    build:
+      context: .
+      dockerfile: mcp_server/Dockerfile
+    image: mcp-gis
+    ports:
+      - "9000:9000"
+    environment:
+      POSTGRES_HOST: db:5432
+    networks:
+      - waltham-gis
+
 volumes:
   database_volume:
 

@@ -1,0 +1,8 @@
+*
+
+!pyproject.toml
+!uv.lock
+!config.py
+!config.json
+
+!mcp_server/main.py
