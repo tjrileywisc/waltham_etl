@@ -1,4 +1,6 @@
 
+*.json
+
 # environment
 .pdm-python
 .venv

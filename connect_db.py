@@ -7,10 +7,12 @@ def get_db() -> Engine:
 
     config = json.load(open("config.json"))
 
-    username = config["username"]
-    password = config["password"]
+    username = config["postgres"]["accounts"]["writable"]["username"]
+    password = config["postgres"]["accounts"]["writable"]["password"]
+    host = config["postgres"]["host"]
+    db = config["postgres"]["database"]
 
-    url = f"postgresql://{username}:{password}@127.0.0.1:5432/walthamdata"
+    url = f"postgresql+psycopg://{username}:{password}@{host}/{db}"
 
     con = create_engine(url)
 

@@ -6,11 +6,11 @@ import logging
 import re
 import sys
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer, Context
 from config import get_config
 
 logging.basicConfig(
@@ -24,8 +24,14 @@ logger = logging.getLogger("mcp_gis")
 class AppContext:
     pool: asyncpg.Pool
 
+# Static resources (no URI template variables) can't take a Context
+# parameter in mcp 2.2, so gis://layers reaches the pool through this
+# module-level handle instead of per-request injection.
+_pool: asyncpg.Pool | None = None
+
 @asynccontextmanager
-async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
+async def app_lifespan(server: MCPServer) -> AsyncGenerator[AppContext]:
+    global _pool
     config = get_config()
 
     pg_account = config["postgres"]["accounts"]["readonly"]
@@ -42,10 +48,12 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         logger.exception("Failed to connect to postgres at %s/%s", host, database)
         raise
     logger.info("Postgres connection pool ready")
+    _pool = pool
 
     try:
         yield AppContext(pool=pool)
     finally:
+        _pool = None
         await pool.close()
         logger.info("Postgres connection pool closed")
 
@@ -55,15 +63,15 @@ _parser.add_argument("--host", default="127.0.0.1")
 _parser.add_argument("--port", type=int, default=8000)
 _args, _ = _parser.parse_known_args()
 
-app = FastMCP("gis-server", lifespan=app_lifespan, host=_args.host, port=_args.port)
+app = MCPServer("gis-server", lifespan=app_lifespan)
 
 @app.tool()
-async def query_bbox(layer: str, min_lon: float, min_lat: float, max_lon: float, max_lat: float) -> str:
+async def query_bbox(layer: str, min_lon: float, min_lat: float, max_lon: float, max_lat: float, ctx: Context[AppContext, None]) -> str:
     """
     Return features within a bounding box as geojson.
     """
     
-    pool = app.get_context().request_context.lifespan_context.pool
+    pool = ctx.request_context.lifespan_context.pool
     rows = await pool.fetch(f"""
         SELECT jsonb_build_object(
             'type', 'Feature', 'geometry', ST_AsGeoJSON(geom)::jsonb,
@@ -79,12 +87,12 @@ async def query_bbox(layer: str, min_lon: float, min_lat: float, max_lon: float,
     return json.dumps({"type": "FeatureCollection", "features": features})
 
 @app.tool()
-async def point_in_layer(layer: str, lon: float, lat: float) -> str:
+async def point_in_layer(layer: str, lon: float, lat: float, ctx: Context[AppContext, None]) -> str:
     """
     Find which feature(s) from a layer contain a point.
     """
-    
-    pool = app.get_context().request_context.lifespan_context.pool
+
+    pool = ctx.request_context.lifespan_context.pool
     rows = await pool.fetch(f"""
         SELECT to_jsonb(t) - 'geom' AS props
         FROM {layer} t
@@ -94,12 +102,12 @@ async def point_in_layer(layer: str, lon: float, lat: float) -> str:
     return json.dumps([dict(r["props"]) for r in rows])
 
 @app.tool()
-async def features_within_distance(layer: str, lon: float, lat: float, meters: float) -> str:
+async def features_within_distance(layer: str, lon: float, lat: float, meters: float, ctx: Context[AppContext, None]) -> str:
     """
     Return features within N meters of a point.
     """
     
-    pool = app.get_context().request_context.lifespan_context.pool
+    pool = ctx.request_context.lifespan_context.pool
     rows = await pool.fetch(f"""
         SELECT to_jsonb(t) - 'geom' AS props,
             ST_Distance(
@@ -120,7 +128,7 @@ async def features_within_distance(layer: str, lon: float, lat: float, meters: f
     ])
     
 @app.tool()
-async def run_spatial_query(sql: str) -> str:
+async def run_spatial_query(sql: str, ctx: Context[AppContext, None]) -> str:
     """
     Run a read-only PostGIS query. SELECT only.
     """
@@ -128,7 +136,7 @@ async def run_spatial_query(sql: str) -> str:
     if not sql.strip().upper().startswith("SELECT"):
         return "Error: only SELECT statements allowed"
     
-    pool = app.get_context().request_context.lifespan_context.pool
+    pool = ctx.request_context.lifespan_context.pool
     async with pool.acquire() as conn:
         await conn.execute("SET TRANSACTION READ ONLY")
         rows = await conn.fetch(sql)
@@ -138,8 +146,8 @@ async def run_spatial_query(sql: str) -> str:
 @app.resource("gis://layers")
 async def list_layers() -> str:
     """List all available spatial layers and their geometry types."""
-    pool = app.get_context().request_context.lifespan_context.pool
-    rows = await pool.fetch("""
+    assert _pool is not None, "Context is not available outside of a request"
+    rows = await _pool.fetch("""
         SELECT f_table_name AS layer, type AS geometry_type, srid
         FROM geometry_columns
         ORDER BY f_table_name
@@ -154,9 +162,9 @@ async def list_layers() -> str:
     return json.dumps(list(entries))
 
 @app.resource("gis://layers/{layer_name}")
-async def get_layer_schema(layer_name: str) -> str:
+async def get_layer_schema(layer_name: str, ctx: Context[AppContext, None]) -> str:
     """Describe the columns and geometry type of a layer."""
-    pool = app.get_context().request_context.lifespan_context.pool
+    pool = ctx.request_context.lifespan_context.pool
     rows = await pool.fetch("""
         SELECT column_name, data_type
         FROM information_schema.columns
@@ -165,4 +173,4 @@ async def get_layer_schema(layer_name: str) -> str:
     return json.dumps([dict(r) for r in rows])
 
 if __name__ == "__main__":
-    app.run(transport="streamable-http")
+    app.run(transport="streamable-http", host=_args.host, port=_args.port)
