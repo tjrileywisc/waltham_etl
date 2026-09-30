@@ -30,6 +30,9 @@ Scripts are run directly — no CLI wrapper or orchestrator:
 ```
 uv run python get_census_data.py   # fetches ACS + decennial census → writes 3 tables to DB
 uv run python get_gis_layers.py    # downloads shapefiles/GDBs from MassGIS S3 → data/gis/
+uv run python get_wards_precincts_data.py  # fetches Waltham's wards/precincts from the Secretary of the Commonwealth's ArcGIS server → `waltham_wards_precincts` table
+uv run python load_zoning_data.py  # loads zoning districts/overlay/codes from the manually-downloaded data/gis/WalthamZoning.zip → 3 tables
+uv run python create_zoned_parcels_view.py  # creates `vw_waltham_zoned_parcels_2026`, tagging each parcel with its majority zoning district
 uv run python get_parcel_data.py   # fetches current Waltham tax parcels → writes `M308TaxPar_CY##_FY##` + `M308Assess_CY##_FY##` tables
 uv run python load_parcel_reference_data.py  # loads UC_LUT/LUT/OthLeg/Misc layers from the downloaded GDB → 4 more tables
 uv run python load_neighbor_parcel_data.py   # loads all historical years for neighboring towns from a manually-downloaded statewide archive zip → ~342 tables
@@ -39,7 +42,13 @@ uv run python load_neighbor_parcel_data.py   # loads all historical years for ne
 
 ## Architecture
 
-**`massgis_api.py`** — `MassGISAPI` client for the MassGIS ArcGIS FeatureServer REST API. Handles pagination (2000 features/page), outputs GeoJSON. All spatial data uses EPSG:26986 (MA Mainland / NAD83), defined in `constants.py`.
+**`massgis_api.py`** — `MassGISAPI` client for ArcGIS FeatureServer REST APIs. Handles pagination (2000 features/page), outputs GeoJSON. Defaults to the MassGIS ArcGIS Online host, but accepts a `base_url` override for other ArcGIS FeatureServer endpoints (e.g. the Secretary of the Commonwealth's server used by `get_wards_precincts_data.py`). All spatial data uses EPSG:26986 (MA Mainland / NAD83), defined in `constants.py`.
+
+**`get_wards_precincts_data.py`** — queries layer 0 of the Secretary of the Commonwealth's `WardsPrecincts2022` FeatureServer (`arcgisserver.digital.mass.gov`, not the usual MassGIS AGOL host) filtered to `TOWN_ID=308`, and writes Waltham's 9 wards / 18 precincts to the `waltham_wards_precincts` table via `geopandas.to_postgis`.
+
+**`load_zoning_data.py`** — reads `WalthamZoning.shp` (zoning districts), `RiverFrontOverlay.shp`, and `ZoningCodes.xlsx` (code → description lookup) out of `data/gis/WalthamZoning.zip` via GDAL's `/vsizip/` mechanism, reprojects the shapefiles from the source CRS (EPSG:2249, MA Mainland feet) to EPSG:26986, and writes `waltham_zoning`, `waltham_zoning_riverfront_overlay`, and `waltham_zoning_codes`. This is an export from Waltham's own GIS department (no public URL), so the zip must be placed manually at that path — same convention as `load_taxparcel_data.py`'s `ZIP_PATH`. The source shapefile has a few self-intersecting rings and one shapeless row (the RB district); these are repaired with `.make_valid()` and coerced to an empty geometry respectively. All geometries are also normalized to `MultiPolygon` (matching the parcel tables' convention) so PostGIS gets a concrete typmod instead of a generic `Geometry` column, and both geometry tables get a `SERIAL PRIMARY KEY` added after load, since the source data has no usable unique field and QGIS otherwise falls back to an unstable `ctid`-derived feature id.
+
+**`create_zoned_parcels_view.py`** — creates `vw_waltham_zoned_parcels_2026`, a view joining `M308TaxPar_CY26_FY26` to `waltham_zoning` on `ST_Intersects`, one row per parcel. Parcels that straddle a zoning boundary intersect more than one district, so the view picks the majority district by overlap area (`DISTINCT ON` ordered by `ST_Area(ST_Intersection(...))` descending) rather than emitting a row per intersected zone. Depends on both `load_zoning_data.py` and whatever loaded the current `M308TaxPar_CY##_FY##` table having already run; the parcel table name is hardcoded to the current vintage and needs updating by hand each year.
 
 **`connect_db.py`** — returns a SQLAlchemy `Engine` connected to the local PostGIS instance. Called at module level in `get_census_data.py`, so the DB must be running before importing it.
 

@@ -5,19 +5,23 @@ import constants
 class MassGISAPI:
     BASE_URL = "https://services1.arcgis.com/hGdibHYSPO59RG1h/arcgis/rest/services/"
 
-    def __init__(self, service: str, layer: int):
-        """Set up a query for data at a specific MassGIS service and layer.
+    def __init__(self, service: str, layer: int, base_url: str = None):
+        """Set up a query for data at a specific ArcGIS FeatureServer service and layer.
 
         Args:
             service (str): the service to fetch from, for example "L3_TAXPAR_POLY_ASSESS_gdb"
             layer (int): the layer number within that service, for example 0
+            base_url (str, optional): override the default MassGIS ArcGIS Online host,
+                for other ArcGIS FeatureServer endpoints (e.g. the Secretary of the
+                Commonwealth's arcgisserver.digital.mass.gov). Defaults to BASE_URL.
         """
         self.service = service
         self.layer = layer
+        self.base_url = base_url if base_url is not None else self.BASE_URL
         self.sess = requests.Session()
 
     def get_layer_url(self) -> str:
-        return f"{self.BASE_URL}{self.service}/FeatureServer/{self.layer}"
+        return f"{self.base_url}{self.service}/FeatureServer/{self.layer}"
 
     def query(self, where: str = "1=1", out_fields: str = "*", return_geometry: bool = True, out_format: str = "geojson") -> list:
         """Query the MassGIS API for data. Paginates data if necessary.

@@ -44,6 +44,21 @@ We include neighboring communities for density calculations and to have the opti
 to determine differences between what would normally be very similar housing markets
 in a more rational world.
 
+### Wards and precincts
+
+Run `get_wards_precincts_data.py` to fetch Waltham's voting wards and precincts from
+the Secretary of the Commonwealth's `WardsPrecincts2022` ArcGIS FeatureServer
+(a different host than the usual MassGIS services) and write them to the
+`waltham_wards_precincts` table.
+
+### Zoning
+
+`WalthamZoning.zip` is an export from Waltham's own GIS department, not a public
+dataset, so there's no URL to automate — place it yourself at `data/gis/WalthamZoning.zip`,
+then run `load_zoning_data.py`. It loads the zoning districts, the river front overlay
+district, and the code → description lookup table into `waltham_zoning`,
+`waltham_zoning_riverfront_overlay`, and `waltham_zoning_codes`.
+
 ## Referenced values
 
 ### US Census
