@@ -24,11 +24,25 @@ repository and name it `config.json`. Enter your API key into the file.
 Run the python `get_census_data.py` script. This fetches a selection of
 data from the Data Profiles and Subjects tables of the American Community Survey.
 
-See [https://api.census.gov/data.html] for the actual tables and fields that are available.
+See [https://api.census.gov/data.html](the Census API) for the actual tables and fields that are available.
 
-### MassGIS layers
+### MassGIS Tax parcels
 
-This data doesn't require any authentication - just run the `get_gis_layers.py` script.
+MassGIS publishes a full statewide archive with a separate per-town,
+per-fiscal-year GDB going back to ~2011-2013 for every town (much larger than
+the single-town downloads above - the 2026-07-02 edition is ~7.9 GB zipped).
+
+Download it yourself (there's no stable public link to automate - MassGIS
+serves it from a page you have to click through) and place it at
+`data/<name>.zip`, then point `ZIP_PATH` in `load_taxparcel_data.py` at
+it and run the script. It reads layers directly out of the zip via GDAL's
+`/vsizip/` mechanism (no need to extract), and loads every available year for
+each of Waltham's neighboring communities (Belmont 026, Lexington 155,
+Lincoln 157, Newton 207, Watertown 314, Weston 333) as well as Waltham itself.
+
+We include neighboring communities for density calculations and to have the option
+to determine differences between what would normally be very similar housing markets
+in a more rational world.
 
 ## Referenced values
 

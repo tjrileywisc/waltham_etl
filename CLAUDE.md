@@ -30,6 +30,9 @@ Scripts are run directly — no CLI wrapper or orchestrator:
 ```
 uv run python get_census_data.py   # fetches ACS + decennial census → writes 3 tables to DB
 uv run python get_gis_layers.py    # downloads shapefiles/GDBs from MassGIS S3 → data/gis/
+uv run python get_parcel_data.py   # fetches current Waltham tax parcels → writes `M308TaxPar_CY##_FY##` + `M308Assess_CY##_FY##` tables
+uv run python load_parcel_reference_data.py  # loads UC_LUT/LUT/OthLeg/Misc layers from the downloaded GDB → 4 more tables
+uv run python load_neighbor_parcel_data.py   # loads all historical years for neighboring towns from a manually-downloaded statewide archive zip → ~342 tables
 ```
 
 `get_roads_data.ipynb` — Jupyter notebook for road network data via MassGIS API.
@@ -41,6 +44,12 @@ uv run python get_gis_layers.py    # downloads shapefiles/GDBs from MassGIS S3 �
 **`connect_db.py`** — returns a SQLAlchemy `Engine` connected to the local PostGIS instance. Called at module level in `get_census_data.py`, so the DB must be running before importing it.
 
 **`get_census_data.py`** — queries three Census datasets for Waltham's 13 census tracts (see `WALTHAM_CENSUS_TRACTS` list) and writes each to a separate table via `pandas.to_sql`. Runs serially per-tract per-field — takes several minutes.
+
+**`get_parcel_data.py`** — queries the `Massachusetts_Property_Tax_Parcels` FeatureServer layer (MassGIS's standardized statewide parcels layer, which combines geometry + assessor attributes that used to be separate TaxPar/Assess downloads) filtered to `TOWN_ID=308`, then splits the result back into an `M308TaxPar_CY##_FY##` table and an `M308Assess_CY##_FY##` table joined on `LOC_ID`. Column names and order are reconciled to match the `M308TaxPar`/`M308Assess` layers found in the downloaded L3 parcels geodatabase (see `load_parcel_reference_data.py`) — including adding back an all-null `CAMA_ID` column, which the REST layer doesn't expose, and coercing numeric columns (`UNITS`, `CAMA_ID`, etc.) that pandas would otherwise infer as text when they happen to be entirely blank for this town. A single `LOC_ID` can span several assessor rows (e.g. one land parcel under a condo complex with a row per unit); that's inherent to the source data, not deduplicated here. Only fetches the current fiscal year snapshot — recovering older vintages would require parsing the historical GDB/shapefile zips already in `data/gis/`.
+
+**`load_parcel_reference_data.py`** — loads the four L3 parcels geodatabase layers that aren't available (or aren't refetched) via the live REST layer: `M308UC_LUT` (use code → description lookup), `M308_LUT` (misc field code lookup), `M308OthLeg` (other legal boundaries, e.g. easements), and `M308Misc` (wetlands/other undeveloped land). Reads directly from `data/gis/M308_parcels_gdb/` via `pyogrio`, so requires `get_gis_layers.py` to have downloaded and extracted that GDB first. Table names are suffixed with the vintage baked into that GDB (currently `CY22_FY23`), not the current year.
+
+**`load_neighbor_parcel_data.py`** — loads historical parcel data for the 6 towns bordering Waltham (Belmont 026, Lexington 155, Lincoln 157, Newton 207, Watertown 314, Weston 333) from MassGIS's full statewide L3 parcels archive — a single zip containing a separate per-town, per-fiscal-year GDB going back to ~2011-2013 (unlike the single-vintage downloads `get_gis_layers.py` fetches). There's no stable URL for this archive (MassGIS serves it from a page, not a fixed link), so it must be downloaded manually and placed at the path set in `ZIP_PATH`; it's gitignored due to size (multiple GB). Reads every layer directly out of the zip via GDAL's `/vsizip/` virtual filesystem — no extraction needed, though GDAL pays a one-time cost building its central-directory index on first access within a process. Writes all 6 layers (`TaxPar`, `Assess`, `_LUT`, `OthLeg`, `UC_LUT`, `Misc`) for every available year of each neighboring town, using the same naming convention as Waltham's own tables. Does not touch Waltham (308) itself.
 
 **Data layout:**
 - `data/gis/` — downloaded shapefiles and geodatabases (not committed; see `data/README.md`)
