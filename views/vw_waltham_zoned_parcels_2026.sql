@@ -11,7 +11,7 @@ SELECT DISTINCT ON (p."LOC_ID")
     p."LOC_ID",
     p."MAP_PAR_ID",
     z."NAME",
-    ST_Transform(p.geom, 4326) AS geom
+    ST_Transform(p.geom, 26986) AS geom
 FROM
     public."M308TaxPar_CY26_FY26" AS p
 JOIN
