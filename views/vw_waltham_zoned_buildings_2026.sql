@@ -7,7 +7,7 @@ CREATE OR REPLACE VIEW public.vw_waltham_zoned_buildings_2026 AS
 SELECT DISTINCT ON (b."STRUCT_ID")
     b."STRUCT_ID",
     z."NAME",
-    ST_Transform(b.geometry, 4326) AS geom
+    ST_Transform(b.geometry, 26986) AS geom
 FROM
     public.waltham_buildings AS b
 JOIN
